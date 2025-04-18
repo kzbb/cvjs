@@ -5,8 +5,8 @@
 ご質問・ご意見は、[こちらのフォームから](https://docs.google.com/forms/d/e/1FAIpQLSd8uEuk0uNigsKV5c_y6TcLYYHeqDe2b2QC_RkfiC0bAbSHqA/viewform?usp=dialog)
 
 ## Webアプリ
-1. [https://cvjs.bblab.org](https://cvjs.bblab.org)にアクセスしてください。
-2. カメラの利用について確認された場合は、「許可」してください。
+1. ウェブブラウザで[https://cvjs.bblab.org](https://cvjs.bblab.org)にアクセスしてください。
+2. カメラ利用許可の確認が表示された場合は「許可」してください。
 3. 映画フィルムを接写してください。
 4. 「frame_x」「frame_y」「Size」のスライダーを操作して、画面上の四角形をフィルムのパーフォレーションに合わせてください。
 5. 「Tracking」トグルスイッチをONにしてください。
