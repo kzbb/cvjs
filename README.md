@@ -44,16 +44,18 @@
     [amazon.co.jp](https://www.amazon.co.jp/dp/B0836J3B39)
 
     スキャナー一種につき4つ使用します。同じ規格のものならどれでも可
-3.  ##### 六角穴付きボルト(半) M4x30
+3.  ##### 六角穴付きボルト(半) M4x30と、六角ナット
 
-    [amazon.co.jp](https://www.amazon.co.jp/dp/B00A2J65NA/)
+    角穴付きボルト(半)　[amazon.co.jp](https://www.amazon.co.jp/dp/B00A2J65NA/)
+    
+    六角ナット　[amazon.co.jp](https://www.amazon.co.jp/dp/B0BVQKMF7H?th=1)
 
-    スキャナー一種につき4つ使用します。同じ規格のものならどれでも可
-4.  ##### 上記用六角レンチ　対辺3mm
-5.  ##### スマホの厚み調整用の紙類
+    スキャナー一種につき4つ使用します。同じ規格のものならどれでも可    
+5.  ##### 上記用六角レンチ　対辺3mm
+6.  ##### スマホの厚み調整用の紙類
 
     厚みが調整できるよう不要な紙や段ボールをご用意ください
-6.  ##### リワインダ
+7.  ##### リワインダ
 
     [amazon.co.jp](https://www.amazon.co.jp/dp/B00BAKO8ZM/)
 
