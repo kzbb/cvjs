@@ -1,0 +1,16 @@
+header {
+  background-color: #000;
+}
+
+#app-title {
+  color: #000;
+}
+
+#app {
+  background: linear-gradient(to bottom, #000, #21252922);
+}
+
+#canvasSrc, #canvas, #canvasTmp {
+  background-color: #fff !important;
+  filter: none !important;
+}
