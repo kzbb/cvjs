@@ -1,0 +1,23 @@
+diff a/index.html b/index.html	(rejected hunks)
+@@ -69,6 +69,21 @@
+                  </div>
+              </div>
+              <div class="mb-3">
+++<<<<<<< HEAD
+++=======
++                 <button id="recordBtn" type="button" class="btn btn-danger">Rec</button>
++                 <button id="stopRecordBtn" type="button" class="btn btn-secondary" disabled>Stop</button>
++                 <div class="mt-2">
++                     <small id="recordingStatus" class="text-muted"></small>
++                 </div>
++                 <div class="mt-2">
++                     <select id="recordFormatSelect" class="form-select form-select-sm">
++                         <option value="">RecFormat (Auto)</option>
++                     </select>
++                 </div>
++             </div>
++             <div class="mb-3">
+++>>>>>>> parent of 46e0953 (Improve OpenCV.js loading with fallback CDNs and better error handling)
+                  <select id="cameraSelect" class="form-select form-select-lg mb-3"></select>
+              </div>
+          </div>

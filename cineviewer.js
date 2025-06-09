@@ -258,19 +258,206 @@ function videoReady() {
     perFrame();
 }
 
-// OpenCV.js準備完了時の処理
+// OpenCV.js準備完了後に呼ばれるメイン初期化関数
+function initCineViewer() {
+    console.log('CineViewer初期化開始');
+    
+    // OpenCV.jsが利用可能か最終確認
+    if (typeof cv === 'undefined') {
+        console.error('OpenCV.jsが利用できません');
+        document.getElementById('pre').textContent = 'OpenCV.jsの読み込みに失敗しました';
+        return;
+    }
+    
+    console.log('OpenCV.jsバージョン:', cv.getBuildInformation());
+    document.getElementById('pre').textContent = 'CineViewer準備完了';
+    
+    // 既存の初期化処理をここに移動
+    initRecording();
+    // その他の初期化処理...
+}
+
+// 後方互換性のため、既存のopcenvReady関数も残す
 function opencvReady() {
-    console.log('OpenCV.js is ready');
-    readyFlag |= 1;
-
-    const preElm = document.getElementById('pre');
-    preElm.innerHTML = "";
-
-    perFrame();
+    // この関数はindex.htmlから呼ばれる
+    console.log('opencvReady called from HTML');
 }
 
 videoElm.addEventListener('loadeddata', videoReady);
 
 let Module = {
     onRuntimeInitialized: opencvReady
+}
+
+// 録画関連の変数
+let mediaRecorder;
+let recordedChunks = [];
+let isRecording = false;
+let supportedFormats = [];
+
+// サポートされている録画形式を検出
+function detectSupportedFormats() {
+    const formats = [
+        { mimeType: 'video/webm;codecs=vp9', extension: 'webm', name: 'WebM (VP9)' },
+        { mimeType: 'video/webm;codecs=vp8', extension: 'webm', name: 'WebM (VP8)' },
+        { mimeType: 'video/webm', extension: 'webm', name: 'WebM' },
+        { mimeType: 'video/mp4;codecs=h264', extension: 'mp4', name: 'MP4 (H.264)' },
+        { mimeType: 'video/mp4', extension: 'mp4', name: 'MP4' },
+        { mimeType: 'video/x-matroska;codecs=avc1', extension: 'mkv', name: 'Matroska' }
+    ];
+
+    supportedFormats = formats.filter(format => 
+        MediaRecorder.isTypeSupported(format.mimeType)
+    );
+
+    console.log('サポートされている録画形式:', supportedFormats);
+    return supportedFormats;
+}
+
+// 最適な録画形式を取得
+function getBestFormat() {
+    if (supportedFormats.length === 0) {
+        detectSupportedFormats();
+    }
+    
+    // 優先順位: VP9 WebM > VP8 WebM > MP4 > その他
+    const priority = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4;codecs=h264', 'video/mp4'];
+    
+    for (const mimeType of priority) {
+        const format = supportedFormats.find(f => f.mimeType === mimeType);
+        if format) return format;
+    }
+    
+    return supportedFormats[0] || { mimeType: 'video/webm', extension: 'webm', name: 'WebM (fallback)' };
+}
+
+// 録画機能の初期化
+function initRecording() {
+    const recordBtn = document.getElementById('recordBtn');
+    const stopRecordBtn = document.getElementById('stopRecordBtn');
+    const recordingStatus = document.getElementById('recordingStatus');
+    const formatSelect = document.getElementById('recordFormatSelect');
+    const canvas = document.getElementById('canvas');
+
+    // サポートされている形式を検出してセレクトボックスに追加
+    detectSupportedFormats();
+    populateFormatSelect();
+
+    recordBtn.addEventListener('click', startRecording);
+    stopRecordBtn.addEventListener('click', stopRecording);
+
+    function populateFormatSelect() {
+        // 既存のオプションをクリア（最初の「自動選択」は残す）
+        while (formatSelect.children.length > 1) {
+            formatSelect.removeChild(formatSelect.lastChild);
+        }
+
+        // サポートされている形式を追加
+        supportedFormats.forEach(format => {
+            const option = document.createElement('option');
+            option.value = format.mimeType;
+            option.textContent = format.name;
+            formatSelect.appendChild(option);
+        });
+
+        // サポートされている形式が少ない場合の警告
+        if (supportedFormats.length === 0) {
+            recordingStatus.textContent = '警告: 録画形式がサポートされていません';
+            recordBtn.disabled = true;
+        } else if (supportedFormats.length === 1) {
+            recordingStatus.textContent = `利用可能な形式: ${supportedFormats[0].name}のみ`;
+        }
+    }
+
+    function getSelectedFormat() {
+        const selectedMimeType = formatSelect.value;
+        if (selectedMimeType) {
+            return supportedFormats.find(f => f.mimeType === selectedMimeType);
+        }
+        return getBestFormat();
+    }
+
+    function startRecording() {
+        try {
+            const stream = canvas.captureStream(30); // 30fps
+            const format = getSelectedFormat();
+            
+            console.log('使用する録画形式:', format);
+            
+            // MediaRecorderを初期化
+            mediaRecorder = new MediaRecorder(stream, {
+                mimeType: format.mimeType
+            });
+
+            recordedChunks = [];
+            
+            mediaRecorder.ondataavailable = function(event) {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = function() {
+                downloadRecording(format);
+            };
+
+            mediaRecorder.start();
+            isRecording = true;
+            
+            // UIの更新
+            recordBtn.disabled = true;
+            stopRecordBtn.disabled = false;
+            formatSelect.disabled = true;
+            recordBtn.textContent = '録画中...';
+            recordBtn.className = 'btn btn-warning';
+            recordingStatus.textContent = `録画中... (${format.name})`;
+            
+        } catch (error) {
+            console.error('録画開始エラー:', error);
+            alert('録画を開始できませんでした: ' + error.message);
+        }
+    }
+
+    function stopRecording() {
+        if (mediaRecorder && isRecording) {
+            mediaRecorder.stop();
+            isRecording = false;
+            
+            // UIの更新
+            recordBtn.disabled = false;
+            stopRecordBtn.disabled = true;
+            formatSelect.disabled = false;
+            recordBtn.textContent = '録画開始';
+            recordBtn.className = 'btn btn-danger';
+            recordingStatus.textContent = 'ダウンロード準備中...';
+        }
+    }
+
+    function downloadRecording(format) {
+        const blob = new Blob(recordedChunks, {
+            type: format.mimeType
+        });
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        
+        // ファイル名に現在の日時を含める
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        a.download = `cineviewer-recording-${timestamp}.${format.extension}`;
+        
+        document.body.appendChild(a);
+        a.click();
+        
+        // クリーンアップ
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        recordingStatus.textContent = `ダウンロード完了 (${format.name})`;
+        setTimeout(() => {
+            recordingStatus.textContent = '';
+        }, 3000);
+    }
 }
