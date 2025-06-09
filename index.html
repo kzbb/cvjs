@@ -6,16 +6,98 @@
     <title>CineViewer build with JavaScript</title>
     <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <!-- 主要CDN -->
-    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="opencvReady();" onerror="loadFallbackOpenCV();" type="text/javascript"></script>
-
+    
+    <!-- OpenCV.jsの動的ロード -->
     <script>
-        function loadFallbackOpenCV() {
-            // フォールバック用CDN
+        let opencvLoadAttempts = 0;
+        const maxAttempts = 3;
+        
+        // OpenCV.jsの複数のCDN URL
+        const opencvUrls = [
+            'https://docs.opencv.org/4.8.0/opencv.js',
+            'https://docs.opencv.org/4.5.0/opencv.js',
+            'https://cdn.jsdelivr.net/npm/opencv.js@1.2.1/opencv.js',
+            'https://unpkg.com/opencv.js@1.2.1/opencv.js'
+        ];
+        
+        function loadOpenCV(urlIndex = 0) {
+            if (urlIndex >= opencvUrls.length) {
+                console.error('すべてのOpenCV CDNが失敗しました');
+                updateStatus('OpenCV.jsの読み込みに失敗しました。ネットワーク接続を確認してください。');
+                return;
+            }
+            
+            opencvLoadAttempts++;
+            const url = opencvUrls[urlIndex];
+            console.log(`OpenCV.js読み込み試行 ${opencvLoadAttempts}: ${url}`);
+            updateStatus(`OpenCV.js読み込み中... (試行 ${opencvLoadAttempts})`);
+            
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/opencv.js@1.2.1/opencv.js';
-            script.onload = opencvReady;
+            script.src = url;
+            script.async = true;
+            
+            script.onload = function() {
+                console.log(`OpenCV.js読み込み成功: ${url}`);
+                updateStatus('OpenCV.js読み込み完了');
+                // OpenCVが利用可能になるまで待機
+                waitForOpenCV();
+            };
+            
+            script.onerror = function() {
+                console.warn(`OpenCV.js読み込み失敗: ${url}`);
+                document.head.removeChild(script);
+                // 次のURLで再試行
+                setTimeout(() => loadOpenCV(urlIndex + 1), 1000);
+            };
+            
             document.head.appendChild(script);
+        }
+        
+        function waitForOpenCV() {
+            if (typeof cv !== 'undefined' && cv.Mat) {
+                console.log('OpenCV.js準備完了');
+                updateStatus('OpenCV.js準備完了');
+                opencvReady();
+            } else {
+                console.log('OpenCV.js待機中...');
+                setTimeout(waitForOpenCV, 100);
+            }
+        }
+        
+        function updateStatus(message) {
+            const preElement = document.getElementById('pre');
+            if (preElement) {
+                preElement.textContent = message;
+            }
+        }
+        
+        // ページロード後にOpenCV.jsの読み込みを開始
+        document.addEventListener('DOMContentLoaded', function() {
+            loadOpenCV();
+        });
+        
+        // フォールバック関数（後方互換性のため）
+        function loadFallbackOpenCV() {
+            loadOpenCV(1);
+        }
+        
+        // OpenCV.js準備完了時に呼ばれる関数（cineviewer.jsで定義）
+        function opencvReady() {
+            console.log('opencvReady() called');
+            updateStatus('CineViewer準備中...');
+            
+            // cineviewer.jsが読み込まれているか確認
+            if (typeof initCineViewer === 'function') {
+                initCineViewer();
+            } else {
+                // cineviewer.jsの読み込みを待機
+                const checkCineViewer = setInterval(() => {
+                    if (typeof initCineViewer === 'function') {
+                        clearInterval(checkCineViewer);
+                        initCineViewer();
+                    }
+                }, 100);
+            }
         }
     </script>
 
@@ -66,6 +148,18 @@
                     <input class="form-check-input" type="checkbox" role="switch" id="trackingSwitch">
                     <label class="form-check-label" for="trackingSwitch">Tracking: <span
                             id="trackingStatus"></span></label>
+                </div>
+            </div>
+            <div class="mb-3">
+                <button id="recordBtn" type="button" class="btn btn-danger">録画開始</button>
+                <button id="stopRecordBtn" type="button" class="btn btn-secondary" disabled>録画停止</button>
+                <div class="mt-2">
+                    <small id="recordingStatus" class="text-muted"></small>
+                </div>
+                <div class="mt-2">
+                    <select id="recordFormatSelect" class="form-select form-select-sm">
+                        <option value="">自動選択</option>
+                    </select>
                 </div>
             </div>
             <div class="mb-3">
