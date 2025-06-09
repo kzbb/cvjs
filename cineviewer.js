@@ -258,15 +258,29 @@ function videoReady() {
     perFrame();
 }
 
-// OpenCV.js準備完了時の処理
+// OpenCV.js準備完了後に呼ばれるメイン初期化関数
+function initCineViewer() {
+    console.log('CineViewer初期化開始');
+    
+    // OpenCV.jsが利用可能か最終確認
+    if (typeof cv === 'undefined') {
+        console.error('OpenCV.jsが利用できません');
+        document.getElementById('pre').textContent = 'OpenCV.jsの読み込みに失敗しました';
+        return;
+    }
+    
+    console.log('OpenCV.jsバージョン:', cv.getBuildInformation());
+    document.getElementById('pre').textContent = 'CineViewer準備完了';
+    
+    // 既存の初期化処理をここに移動
+    initRecording();
+    // その他の初期化処理...
+}
+
+// 後方互換性のため、既存のopcenvReady関数も残す
 function opencvReady() {
-    console.log('OpenCV.js is ready');
-    readyFlag |= 1;
-
-    const preElm = document.getElementById('pre');
-    preElm.innerHTML = "";
-
-    perFrame();
+    // この関数はindex.htmlから呼ばれる
+    console.log('opencvReady called from HTML');
 }
 
 videoElm.addEventListener('loadeddata', videoReady);
