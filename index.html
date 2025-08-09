@@ -30,22 +30,22 @@
     </header>
     <pre id="pre">Loading...</pre>
     <div class="row">
-        <div class="col-md">
+        <div class="col-12 col-md-8 col-lg-9">
             <canvas id="canvas" class="w-100 my-5"></canvas>
         </div>
-        <div class="col-auto ms-3 ms-md-0">
+        <div id="controlPanel" class="col-12 col-md-4 col-lg-3">
             <div>
                 <div class="mb-3">
-                    <input id="frame_x" type="range">
-                    <label for="frame_x">frame_x:</label>
+                    <input id="regpin_x" type="range" class="form-range">
+                    <label for="regpin_x">Registration X:</label>
                 </div>
                 <div class="mb-3">
-                    <input id="frame_y" type="range">
-                    <label for="frame_y">frame_y:</label>
+                    <input id="regpin_y" type="range" class="form-range">
+                    <label for="regpin_y">Registration Y:</label>
                 </div>
                 <div class="mb-3">
-                    <input id="frame_size" type="range" value="100" min="1" max="200">
-                    <label for="frame_size">Size:</label>
+                    <input id="template_size" type="range" value="100" min="1" max="200" class="form-range">
+                    <label for="template_size">Template Size:</label>
                 </div>
             </div>
             <div>
@@ -60,6 +60,20 @@
                 <div class="mb-3">
                     <button id="rotate" type="button" class="btn btn-primary d-none">Rotate</button>
                 </div>
+            </div>
+        <div class="card bg-body-tertiary p-3 mb-3">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+            <button id="recStart" type="button" class="btn btn-danger">Record</button>
+            <button id="recPause" type="button" class="btn btn-outline-light" disabled>Pause</button>
+            <button id="recStop" type="button" class="btn btn-outline-light" disabled>Stop</button>
+                    <span id="recIndicator" class="ms-2 text-danger fw-bold d-none">● REC <span id="recTimer">00:00</span></span>
+                </div>
+                <div class="small text-secondary mt-2" id="recFormat"></div>
+                <div class="mt-2 d-flex gap-2 align-items-center flex-wrap">
+            <a id="recDownload" class="btn btn-outline-secondary btn-sm d-none" download>Download</a>
+                    <span id="recNote" class="text-warning-emphasis small"></span>
+                </div>
+                <video id="recPreview" class="w-100 mt-2 d-none" controls></video>
             </div>
             <div>
                 <div class="form-check form-switch mb-3">

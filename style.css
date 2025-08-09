@@ -14,3 +14,31 @@ header {
   background-color: #fff !important;
   filter: none !important;
 }
+
+/* ダーク背景でのコントロール可視性（中立色で強調） */
+.form-range {
+  accent-color: #ddd; /* サム/選択部の色を明るいグレーに */
+}
+.form-range::-webkit-slider-thumb {
+  background-color: #ddd;
+  border: 1px solid #fff;
+}
+.form-range::-moz-range-thumb {
+  background-color: #ddd;
+  border: 1px solid #fff;
+}
+.form-range::-webkit-slider-runnable-track {
+  background-color: #666;
+}
+.form-range::-moz-range-track {
+  background-color: #666;
+}
+/* FocusリングはBootstrap既定で十分。必要なら次を有効化
+ .form-check-input:focus { box-shadow: 0 0 0 .25rem rgba(13,110,253,.25); }
+*/
+
+/* 録画コントロールカードは背景を黒のまま、境界を薄く可視化 */
+.card.bg-body-tertiary {
+  background-color: #000 !important;
+  border: 1px solid #2b2b2b;
+}

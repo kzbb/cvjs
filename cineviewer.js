@@ -24,6 +24,12 @@ const ctxTmp = canvasTmpElm.getContext('2d');
 let readyFlag = 0; // 処理準備状態を示すフラグ
 let frameCallbackId; // フレームコールバックID
 let trackingSwitchFlag = false; // トラッキングのON/OFF状態
+// 録画関連
+let mediaRecorder = null;
+let recordedBlobs = [];
+let recordTimerId = null;
+let recordStartEpoch = 0;
+let captureStream = null;
 
 // 画像サイズの定義
 const IMAGE_WIDTH = 480; // 画像の幅
@@ -39,19 +45,19 @@ const cameraSettings = {
     }
 };
 
-// コントローラ設定
-// 四角形のポジションとサイズを管理
-const frame_x = document.getElementById("frame_x");
-frame_x.min = 0;
-frame_x.max = IMAGE_WIDTH;
-frame_x.value = 50;
+// コントローラ設定（レジストレーション／テンプレート）
+// パーフォレーション位置（X/Y）とテンプレートサイズを管理
+const regpin_x = document.getElementById("regpin_x");
+regpin_x.min = 0;
+regpin_x.max = IMAGE_WIDTH;
+regpin_x.value = 50;
 
-const frame_y = document.getElementById("frame_y");
-frame_y.min = 0;
-frame_y.max = IMAGE_HEIGHT;
-frame_y.value = 100;
+const regpin_y = document.getElementById("regpin_y");
+regpin_y.min = 0;
+regpin_y.max = IMAGE_HEIGHT;
+regpin_y.value = 100;
 
-const frame_size = document.getElementById("frame_size");
+const template_size = document.getElementById("template_size");
 
 // 上下左右反転スイッチ
 let flip_v = false; // 垂直反転フラグ
@@ -203,14 +209,14 @@ function perFrame() {
 
     if (!trackingSwitchFlag) {
         // トラッキングOFF時の処理
-        const p1 = new cv.Point(Number(frame_x.value) + 20, Number(frame_y.value) + 20);
-        const p2 = new cv.Point(Number(frame_size.value) + Number(frame_x.value) - 40, Number(frame_size.value) + Number(frame_y.value) - 40);
+    const p1 = new cv.Point(Number(regpin_x.value) + 20, Number(regpin_y.value) + 20);
+    const p2 = new cv.Point(Number(template_size.value) + Number(regpin_x.value) - 40, Number(template_size.value) + Number(regpin_y.value) - 40);
 
         const color = new cv.Scalar(255, 255, 255);
         const lcolor = new cv.Scalar(0, 0, 255);
         cv.rectangle(src, p1, p2, lcolor);
 
-        const canvasTmpImage = ctxSrc.getImageData(Number(frame_x.value) + 20, Number(frame_y.value) + 20, Number(frame_size.value) - 60, Number(frame_size.value) - 60);
+    const canvasTmpImage = ctxSrc.getImageData(Number(regpin_x.value) + 20, Number(regpin_y.value) + 20, Number(template_size.value) - 60, Number(template_size.value) - 60);
         tmp = cv.matFromImageData(canvasTmpImage);
         cv.imshow('canvasTmp', tmp);
 
@@ -236,8 +242,8 @@ function perFrame() {
         mask.delete();
 
         ctx.drawImage(canvasSrcElm,
-            Number(frame_x.value) - maxPoint.x + 20,
-            Number(frame_y.value) - maxPoint.y + 20,
+            Number(regpin_x.value) - maxPoint.x + 20,
+            Number(regpin_y.value) - maxPoint.y + 20,
             IMAGE_WIDTH, IMAGE_HEIGHT);
     }
 
@@ -274,3 +280,166 @@ videoElm.addEventListener('loadeddata', videoReady);
 let Module = {
     onRuntimeInitialized: opencvReady
 }
+
+// ===== Canvas録画のセットアップ =====
+const recStartBtn = document.getElementById('recStart');
+const recPauseBtn = document.getElementById('recPause');
+const recStopBtn = document.getElementById('recStop');
+const recIndicator = document.getElementById('recIndicator');
+const recTimer = document.getElementById('recTimer');
+const recDownload = document.getElementById('recDownload');
+const recPreview = document.getElementById('recPreview');
+const recFormat = document.getElementById('recFormat');
+const recNote = document.getElementById('recNote');
+
+function formatTime(ms){
+    const sec = Math.floor(ms/1000);
+    const m = Math.floor(sec/60).toString().padStart(2,'0');
+    const s = (sec%60).toString().padStart(2,'0');
+    return `${m}:${s}`;
+}
+
+function updateTimer(){
+    const ms = Date.now() - recordStartEpoch;
+    recTimer.textContent = formatTime(ms);
+}
+
+function pickMimeType(){
+    const candidates = [
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm',
+        'video/mp4;codecs=h264,aac', // Safari 17では不可、将来互換のため候補に
+    ];
+    for(const type of candidates){
+        if(MediaRecorder.isTypeSupported(type)) return type;
+    }
+    return '';
+}
+
+function shortMimeLabel(type){
+    if(!type) return 'Auto';
+    const t = type.toLowerCase();
+    if(t.includes('video/webm;codecs=vp9')) return 'WebM/VP9';
+    if(t.includes('video/webm;codecs=vp8')) return 'WebM/VP8';
+    if(t.startsWith('video/webm')) return 'WebM';
+    if(t.includes('video/mp4') || t.includes('h264')) return 'MP4/H.264';
+    return 'Auto';
+}
+
+function setupRecorder(){
+    // 既存のストリーム/レコーダーを停止
+    try { mediaRecorder && mediaRecorder.state !== 'inactive' && mediaRecorder.stop(); } catch {}
+    try { captureStream && captureStream.getTracks().forEach(t=>t.stop()); } catch {}
+    recordedBlobs = [];
+
+    // Canvasのフレームレート（24.00fps）
+    const fps = 24.00;
+    captureStream = canvasElm.captureStream(fps);
+    const mimeType = pickMimeType();
+    const options = mimeType ? { mimeType } : {};
+    recFormat.textContent = `Format: ${shortMimeLabel(mimeType)} • ${Math.round(fps)}fps`;
+
+    try{
+        mediaRecorder = new MediaRecorder(captureStream, options);
+    }catch(e){
+        recNote.textContent = 'MediaRecorderの初期化に失敗しました。ブラウザの対応状況をご確認ください。';
+        console.error(e);
+        return false;
+    }
+
+    mediaRecorder.ondataavailable = (event)=>{
+        if(event.data && event.data.size > 0){
+            recordedBlobs.push(event.data);
+        }
+    };
+    mediaRecorder.onstart = ()=>{
+        recIndicator.classList.remove('d-none');
+        recDownload.classList.add('d-none');
+        recPreview.classList.add('d-none');
+        recNote.textContent = '';
+        recordStartEpoch = Date.now();
+        recordTimerId = setInterval(updateTimer, 500);
+        updateTimer();
+    };
+    mediaRecorder.onstop = ()=>{
+        clearInterval(recordTimerId);
+        updateTimer();
+        recIndicator.classList.add('d-none');
+
+        const blob = new Blob(recordedBlobs, { type: mediaRecorder.mimeType || 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        recPreview.src = url;
+        recPreview.classList.remove('d-none');
+        recDownload.href = url;
+        const ext = (mediaRecorder.mimeType||'video/webm').includes('mp4') ? 'mp4' : 'webm';
+        recDownload.download = `cvjs-recording-${new Date().toISOString().replace(/[:.]/g,'-')}.${ext}`;
+        recDownload.classList.remove('d-none');
+    };
+    mediaRecorder.onerror = (e)=>{
+        console.error('MediaRecorder error:', e);
+        recNote.textContent = '録画中にエラーが発生しました。';
+    };
+    return true;
+}
+
+function setRecButtonsState(state){
+    // state: idle | recording | paused
+    if(state==='idle'){
+        recStartBtn.disabled = false;
+        recPauseBtn.disabled = true;
+        recStopBtn.disabled = true;
+    }else if(state==='recording'){
+        recStartBtn.disabled = true;
+        recPauseBtn.disabled = false;
+        recStopBtn.disabled = false;
+        recPauseBtn.textContent = 'Pause';
+    }else if(state==='paused'){
+        recStartBtn.disabled = true;
+        recPauseBtn.disabled = false;
+        recStopBtn.disabled = false;
+        recPauseBtn.textContent = 'Resume';
+    }
+}
+
+setRecButtonsState('idle');
+
+recStartBtn.addEventListener('click', ()=>{
+    if(!setupRecorder()) return;
+    try{
+        mediaRecorder.start(1000); // 1sごとにデータを分割
+        setRecButtonsState('recording');
+    }catch(e){
+        console.error(e);
+        recNote.textContent = '録画を開始できませんでした。';
+    }
+});
+
+recPauseBtn.addEventListener('click', ()=>{
+    if(!mediaRecorder) return;
+    try{
+        if(mediaRecorder.state === 'recording'){
+            mediaRecorder.pause();
+            setRecButtonsState('paused');
+            if(recordTimerId){ clearInterval(recordTimerId); }
+        }else if(mediaRecorder.state === 'paused'){
+            mediaRecorder.resume();
+            setRecButtonsState('recording');
+            recordStartEpoch = Date.now() - (parseInt(recTimer.textContent.split(':')[0])*60 + parseInt(recTimer.textContent.split(':')[1]))*1000;
+            recordTimerId = setInterval(updateTimer, 500);
+        }
+    }catch(e){
+        console.error(e);
+    }
+});
+
+recStopBtn.addEventListener('click', ()=>{
+    if(!mediaRecorder) return;
+    try{
+        mediaRecorder.stop();
+        setRecButtonsState('idle');
+        if(captureStream){ captureStream.getTracks().forEach(t=>t.stop()); }
+    }catch(e){
+        console.error(e);
+    }
+});
