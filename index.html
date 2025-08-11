@@ -61,16 +61,16 @@
                     <button id="rotate" type="button" class="btn btn-primary d-none">Rotate</button>
                 </div>
             </div>
-        <div class="card bg-body-tertiary p-3 mb-3">
+            <div class="card bg-body-tertiary p-3 mb-3">
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-            <button id="recStart" type="button" class="btn btn-danger">Record</button>
-            <button id="recPause" type="button" class="btn btn-outline-light" disabled>Pause</button>
-            <button id="recStop" type="button" class="btn btn-outline-light" disabled>Stop</button>
+                    <button id="recStart" type="button" class="btn btn-danger">Record</button>
+                    <button id="recPause" type="button" class="btn btn-outline-light" disabled>Pause</button>
+                    <button id="recStop" type="button" class="btn btn-outline-light" disabled>Stop</button>
                     <span id="recIndicator" class="ms-2 text-danger fw-bold d-none">● REC <span id="recTimer">00:00</span></span>
                 </div>
                 <div class="small text-secondary mt-2" id="recFormat"></div>
                 <div class="mt-2 d-flex gap-2 align-items-center flex-wrap">
-            <a id="recDownload" class="btn btn-outline-secondary btn-sm d-none" download title="Download file">Save video</a>
+                    <a id="recDownload" class="btn btn-outline-secondary btn-sm d-none" download title="Download file">Save video</a>
                     <span id="recNote" class="text-warning-emphasis small"></span>
                 </div>
                 <video id="recPreview" class="w-100 mt-2 d-none" controls></video>
@@ -78,8 +78,7 @@
             <div>
                 <div class="form-check form-switch mb-3">
                     <input class="form-check-input" type="checkbox" role="switch" id="trackingSwitch">
-                    <label class="form-check-label" for="trackingSwitch">Tracking: <span
-                            id="trackingStatus"></span></label>
+                    <label class="form-check-label" for="trackingSwitch">Tracking: <span id="trackingStatus"></span></label>
                 </div>
             </div>
             <div class="mb-3">
@@ -101,7 +100,11 @@
     </p>
     <p>
         CineViewer JSは、スマートフォン等で簡易的に映画フィルムを見るためのツールです。
-        ウェブアプリケーションと、安価に制作できる接写装置とで構成されています。
+        ウェブアプリケーションと、安価に制作できる接写装置とで構成されています。<br>
+        <span style="font-size: 0.8rem; color: #808080;">
+            カメラの画像処理および録画はすべてブラウザ内で完結しており、外部への送信はありません。
+            動画保存時に「ダウンロード」と表示されますが、これも端末内部で一時的な記憶領域から取り出して動画ファイルとして保存する操作です。
+        </span>
     </p>
     <a href="https://github.com/kzbb/cvjs">GitHub Repository</a>
 </div>
