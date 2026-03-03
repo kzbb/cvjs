@@ -39,8 +39,8 @@ const IMAGE_HEIGHT = 270; // 画像の高さ
 const cameraSettings = {
     audio: false, // 音声を無効化
     video: {
-        width: IMAGE_WIDTH, // 映像の幅
-        height: IMAGE_HEIGHT, // 映像の高さ
+        width: { ideal: IMAGE_WIDTH }, // 映像の幅（ideal指定で縦向きでも失敗しない）
+        height: { ideal: IMAGE_HEIGHT }, // 映像の高さ（ideal指定で縦向きでも失敗しない）
         facingMode: 'user', // フロントカメラを使用
     }
 };
@@ -73,6 +73,13 @@ document.getElementById('flipSwitchH').addEventListener('change', function () {
 // 画像回転設定
 let rotateNum = 0; // 回転状態を管理
 setRotation(); // 初期回転設定
+
+// 画面の向き変更時に回転設定を更新
+if (screen.orientation) {
+    screen.orientation.addEventListener('change', setRotation);
+} else {
+    window.addEventListener('orientationchange', setRotation);
+}
 
 // 端末の縦向き横向きを判定して初期値を設定する関数
 function setRotation() {
@@ -163,6 +170,11 @@ navigator.mediaDevices.getUserMedia(cameraSettings)
     .then(stream => {
         videoElm.srcObject = stream;
         videoElm.play();
+    })
+    .catch(err => {
+        const preElm = document.getElementById('pre');
+        preElm.innerHTML = `カメラの取得に失敗しました: ${err.name}`;
+        console.error('Error accessing camera:', err);
     });
 
 // トラッキングのON/OFFスイッチ
@@ -212,7 +224,6 @@ function perFrame() {
     const p1 = new cv.Point(Number(regpin_x.value) + 20, Number(regpin_y.value) + 20);
     const p2 = new cv.Point(Number(template_size.value) + Number(regpin_x.value) - 40, Number(template_size.value) + Number(regpin_y.value) - 40);
 
-        const color = new cv.Scalar(255, 255, 255);
         const lcolor = new cv.Scalar(0, 0, 255);
         cv.rectangle(src, p1, p2, lcolor);
 
