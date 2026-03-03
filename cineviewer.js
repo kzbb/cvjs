@@ -194,7 +194,7 @@ function perFrame() {
     if (readyFlag !== 3) return;
 
     const cap = new cv.VideoCapture(videoElm);
-    const src = new cv.Mat(videoElm.height, videoElm.width, cv.CV_8UC4);
+    let src = new cv.Mat(videoElm.height, videoElm.width, cv.CV_8UC4);
     let dst = new cv.Mat();
     let roi = new cv.Mat();
     let tmp = new cv.Mat();
@@ -205,15 +205,13 @@ function perFrame() {
     if (flip_v) cv.flip(src, src, 0);
     if (flip_h) cv.flip(src, src, 1);
 
-    // 画像回転処理
-    switch (rotateNum) {
-        case 3:
-            cv.rotate(src, src, cv.ROTATE_90_CLOCKWISE);
-        case 2:
-            cv.rotate(src, src, cv.ROTATE_90_CLOCKWISE);
-        case 1:
-            cv.rotate(src, src, cv.ROTATE_90_CLOCKWISE);
-            break;
+    // 画像回転処理（cv.rotateはサイズが変わるためインプレース不可。別のMatに出力して差し替える）
+    if (rotateNum !== 0) {
+        const rotCodes = [null, cv.ROTATE_90_CLOCKWISE, cv.ROTATE_180, cv.ROTATE_90_COUNTERCLOCKWISE];
+        const rotated = new cv.Mat();
+        cv.rotate(src, rotated, rotCodes[rotateNum]);
+        src.delete();
+        src = rotated;
     }
 
     // 画像処理用キャンバスに出力
