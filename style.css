@@ -10,8 +10,13 @@ header {
   background: linear-gradient(to bottom, #000, #21252922);
 }
 
-#canvasSrc, #canvas, #canvasTmp {
+#canvasSrc, #canvasTmp {
   background-color: #fff !important;
+  filter: none !important;
+}
+
+#canvas {
+  background: linear-gradient(135deg, #0a1628 0%, #1a3a5c 60%, #0d2645 100%) !important;
   filter: none !important;
 }
 

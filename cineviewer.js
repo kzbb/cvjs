@@ -193,39 +193,56 @@ document.getElementById('trackingSwitch').addEventListener('change', function ()
 function perFrame() {
     if (readyFlag !== 3) return;
 
-    const cap = new cv.VideoCapture(videoElm);
-    let src = new cv.Mat(videoElm.height, videoElm.width, cv.CV_8UC4);
+    const vw = videoElm.videoWidth;
+    const vh = videoElm.videoHeight;
+    if (vw === 0 || vh === 0) {
+        frameCallbackId = videoElm.requestVideoFrameCallback(perFrame);
+        return;
+    }
+
+    // 縦長の場合は中央を横長に切り出す（横長はそのまま）
+    let srcX = 0, srcY = 0, srcW = vw, srcH = vh;
+    if (vh > vw) {
+        srcH = Math.floor(vw * IMAGE_HEIGHT / IMAGE_WIDTH);
+        srcY = Math.floor((vh - srcH) / 2);
+    }
+
+    // スライダーの最大値を実際のフレームサイズに合わせる
+    if (Number(regpin_x.max) !== srcW) {
+        regpin_x.max = srcW;
+        if (Number(regpin_x.value) > srcW) regpin_x.value = srcW;
+    }
+    if (Number(regpin_y.max) !== srcH) {
+        regpin_y.max = srcH;
+        if (Number(regpin_y.value) > srcH) regpin_y.value = srcH;
+    }
+
+    // canvasSrcに描画（切り出し範囲 → canvasSrc全体）
+    canvasSrcElm.width = srcW;
+    canvasSrcElm.height = srcH;
+    ctxSrc.drawImage(videoElm, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+
+    let src = cv.imread(canvasSrcElm);
     let dst = new cv.Mat();
     let roi = new cv.Mat();
     let tmp = new cv.Mat();
-
-    cap.read(src);
 
     // 上下左右反転処理
     if (flip_v) cv.flip(src, src, 0);
     if (flip_h) cv.flip(src, src, 1);
 
-    // 画像回転処理（cv.rotateはサイズが変わるためインプレース不可。別のMatに出力して差し替える）
-    if (rotateNum !== 0) {
-        const rotCodes = [null, cv.ROTATE_90_CLOCKWISE, cv.ROTATE_180, cv.ROTATE_90_COUNTERCLOCKWISE];
-        const rotated = new cv.Mat();
-        cv.rotate(src, rotated, rotCodes[rotateNum]);
-        src.delete();
-        src = rotated;
-    }
-
-    // 画像処理用キャンバスに出力
+    // 反転後をcanvasSrcに反映
     cv.imshow('canvasSrc', src);
 
     if (!trackingSwitchFlag) {
         // トラッキングOFF時の処理
-    const p1 = new cv.Point(Number(regpin_x.value) + 20, Number(regpin_y.value) + 20);
-    const p2 = new cv.Point(Number(template_size.value) + Number(regpin_x.value) - 40, Number(template_size.value) + Number(regpin_y.value) - 40);
+        const p1 = new cv.Point(Number(regpin_x.value), Number(regpin_y.value));
+        const p2 = new cv.Point(Number(regpin_x.value) + Number(template_size.value), Number(regpin_y.value) + Number(template_size.value));
 
-        const lcolor = new cv.Scalar(0, 0, 255);
+        const lcolor = new cv.Scalar(255, 255, 255, 255);
         cv.rectangle(src, p1, p2, lcolor);
 
-    const canvasTmpImage = ctxSrc.getImageData(Number(regpin_x.value) + 20, Number(regpin_y.value) + 20, Number(template_size.value) - 60, Number(template_size.value) - 60);
+        const canvasTmpImage = ctxSrc.getImageData(Number(regpin_x.value), Number(regpin_y.value), Number(template_size.value), Number(template_size.value));
         tmp = cv.matFromImageData(canvasTmpImage);
         cv.imshow('canvasTmp', tmp);
 
@@ -242,18 +259,20 @@ function perFrame() {
         let result = cv.minMaxLoc(resImage, mask);
         let maxPoint = result.maxLoc;
 
-        let p_x = maxPoint.x;
-        let p_y = maxPoint.y;
-
-        statusText.innerHTML = "x:" + p_x + ", y:" + p_y;
+        statusText.innerHTML = "x:" + maxPoint.x + ", y:" + maxPoint.y;
 
         resImage.delete();
         mask.delete();
 
+        // サイズ変化時のみリサイズ（width/height代入でcanvasがクリアされるため）
+        if (canvasElm.width !== srcW || canvasElm.height !== srcH) {
+            canvasElm.width = srcW;
+            canvasElm.height = srcH;
+        }
+        // 前のフレームの上に重ねて描画（クリアせず蓄積）
         ctx.drawImage(canvasSrcElm,
-            Number(regpin_x.value) - maxPoint.x + 20,
-            Number(regpin_y.value) - maxPoint.y + 20,
-            IMAGE_WIDTH, IMAGE_HEIGHT);
+            Number(regpin_x.value) - maxPoint.x,
+            Number(regpin_y.value) - maxPoint.y);
     }
 
     src.delete();
@@ -266,7 +285,13 @@ function perFrame() {
 
 // 動画準備完了時の処理
 function videoReady() {
-    console.log('Video ready');
+    if (readyFlag & 2) return; // 既に初期化済み（2重発火防止）
+    // videoWidthが0の場合はまだ準備できていないので待つ
+    if (videoElm.videoWidth === 0) {
+        videoElm.addEventListener('playing', videoReady, { once: true });
+        return;
+    }
+    console.log('Video ready', videoElm.videoWidth, videoElm.videoHeight);
     readyFlag |= 2;
     videoElm.width = videoElm.videoWidth;
     videoElm.height = videoElm.videoHeight;
@@ -285,6 +310,7 @@ function opencvReady() {
 }
 
 videoElm.addEventListener('loadeddata', videoReady);
+videoElm.addEventListener('playing', videoReady, { once: true });
 
 let Module = {
     onRuntimeInitialized: opencvReady
@@ -315,10 +341,12 @@ function updateTimer(){
 
 function pickMimeType(){
     const candidates = [
+        'video/mp4;codecs=avc1',   // Safari/iOS
+        'video/mp4;codecs=h264',   // Chrome 130+
+        'video/mp4',               // 汎用MP4フォールバック
         'video/webm;codecs=vp9,opus',
         'video/webm;codecs=vp8,opus',
         'video/webm',
-        'video/mp4;codecs=h264,aac', // Safari 17では不可、将来互換のため候補に
     ];
     for(const type of candidates){
         if(MediaRecorder.isTypeSupported(type)) return type;

@@ -1,0 +1,10 @@
+# 証明書ファイル
+*.pem
+*.key
+
+# macOS
+.DS_Store
+
+# エディタ
+.vscode/
+*.swp
